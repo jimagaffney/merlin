@@ -413,10 +413,10 @@ class MerlinStudy:
             flux_bin = os.path.join(self.expanded_spec.batch["flux_path"], "flux")
         return get_flux_cmd(flux_bin, no_errors=self.no_errors)
 
-    def generate_samples(self):
+    def generate_samples(self) -> None:
         """
         Runs the function defined in 'generate' if self.samples_file is not
-        yet a file.
+        yet a file. 
 
         Example spec_file contents:
 
@@ -428,28 +428,29 @@ class MerlinStudy:
                 cmd: python make_samples.py -outfile=samples.npy
 
         """
-        try:
-            if not os.path.exists(self.samples_file):
-                sample_generate = self.expanded_spec.merlin["samples"]["generate"]["cmd"]
-                LOG.info("Generating samples...")
-                sample_process = subprocess.Popen(
-                    sample_generate,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    shell=True,
-                )
-                stdout, stderr = sample_process.communicate()
-                with open(os.path.join(self.info, "cmd.sh"), "w") as f:
-                    f.write(sample_generate)
-                with open(os.path.join(self.info, "cmd.out"), "wb") as f:
-                    f.write(stdout)
-                with open(os.path.join(self.info, "cmd.err"), "wb") as f:
-                    f.write(stderr)
+        if not os.path.exists(self.samples_file):
+            sample_generate = self.expanded_spec.merlin["samples"]["generate"]["cmd"]
+            LOG.info("Generating samples...")
+            sample_process = subprocess.run(
+                sample_generate,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                shell=True,
+            )
+            stdout, stderr = sample_process.stdout, sample_process.stderr
+            with open(os.path.join(self.info, "cmd.sh"), "w") as f:
+                f.write(sample_generate)
+            with open(os.path.join(self.info, "cmd.out"), "wb") as f:
+                f.write(stdout)
+            with open(os.path.join(self.info, "cmd.err"), "wb") as f:
+                f.write(stderr)
+
+            if sample_process.returncode:
+                LOG.error(f"Could not generate samples. Check the `merlin_info` directory.")
+                raise Exception()
+            else:
                 LOG.info("Generating samples complete!")
-            return
-        except (IndexError, TypeError) as e:
-            LOG.error(f"Could not generate samples:\n{e}")
-            return
+
 
     def load_pgen(self, filepath, pargs, env):
         if filepath:
